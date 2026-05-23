@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Gradio auto-generated files
+.gradio/
+
+# Models (Optional: large files)
+# If models are too large for GitHub, uncomment the line below
+# models/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+#data set
+brain-tumor-2d-dataset/
+train_segmentation.py
+
+models/*.h5
+models/*.keras
+
+PROJECT_RULES.md
+
+test_images/*.jpg
+test_images/*.png
