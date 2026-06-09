@@ -22,8 +22,8 @@ An advanced, clinical-grade medical imaging application that uses **Ensemble Dee
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/BrainTumorXAI.git
-cd BrainTumorXAI
+git clone https://github.com/bhola-dev58/final_year_project_brain_tumor_segmentation_explaination.git
+cd final_year_project_brain_tumor_segmentation_explaination
 ```
 
 ### 2. Set Up Virtual Environment
