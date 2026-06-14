@@ -1,8 +1,18 @@
 from typing import Tuple, Optional
+import os
 import numpy as np
 import gradio as gr
 
 from src.inference import predict_tumor_logic
+
+# Absolute paths to real MRI scan examples (mask images are excluded)
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EXAMPLE_IMAGES = [
+    [os.path.join(_BASE_DIR, "test_images", "Tr-me_0025.jpg")],
+    [os.path.join(_BASE_DIR, "test_images", "Tr-me_0070.jpg")],
+    [os.path.join(_BASE_DIR, "test_images", "Tr-me_0080.jpg")],
+    [os.path.join(_BASE_DIR, "test_images", "Tr-pi_0050.jpg")],
+]
 
 def get_custom_css() -> str:
     """
@@ -352,6 +362,12 @@ def create_app() -> gr.Blocks:
                         with gr.Row():
                             predict_btn = gr.Button("Analyze MRI", elem_classes="action-btn", scale=3)
                             clear_btn = gr.Button("Clear", elem_classes="clear-btn", scale=1)
+                        gr.Examples(
+                            examples=EXAMPLE_IMAGES,
+                            inputs=input_img,
+                            label="Quick Examples — Click to Load",
+                            examples_per_page=4,
+                        )
 
                     with gr.Column(scale=1, min_width=250, elem_classes="card-panel"):
                         gr.HTML('<div style="background:#1e293b; padding:10px 16px; font-size:14px; font-weight:600; color:#e2e8f0;">Uploaded Image</div>')
