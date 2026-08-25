@@ -2,36 +2,27 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual Environment
 venv/
 ENV/
 env/
+.env/
+.env
 
-# Gradio auto-generated files
+# Large Folders / Datasets / Weights
+datasets/
+models/
+test_images/
+brain-tumor-2d-dataset/
+
+# IDE & Tooling
 .gradio/
-
-# Models (Optional: large files)
-# If models are too large for GitHub, uncomment the line below
-# models/
+.vscode/
+.idea/
+.pytest_cache/
 
 # OS files
 .DS_Store
 Thumbs.db
-
-# IDEs
-.vscode/
-.idea/
-
-#data set
-brain-tumor-2d-dataset/
-train_segmentation.py
-
-models/*.h5
-models/*.keras
-
-PROJECT_RULES.md
-
-test_images/*.jpg
-test_images/*.png
-f.txt

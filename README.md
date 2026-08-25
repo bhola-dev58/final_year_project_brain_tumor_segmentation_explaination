@@ -110,21 +110,31 @@ pip install -r requirements.txt
 
 ---
 
-### 4. Run the Gradio Dashboard
+### 4. Quick Execution Commands
 
-```bash
+You can run any command directly from your terminal:
+
+**Launch Gradio App:**
+```powershell
 python app.py
 ```
+Open in browser: `http://127.0.0.1:7860`
 
-Once running, open the local URL in your browser:
-
+**Launch REST API:**
+```powershell
+python scripts/run_api.py
 ```
-http://127.0.0.1:7860
+Open interactive Swagger documentation: `http://localhost:8000/docs`
+
+**Evaluate Model Accuracy:**
+```powershell
+python scripts/evaluate_models.py --dataset_dir "datasets/image" --val_split 0.30
 ```
 
-A shareable public link is also printed to the terminal automatically (valid for 1 week).
-
-The dashboard includes a **Quick Examples** section — click any sample thumbnail to load it instantly without manually uploading a file.
+**Run Automated Tests:**
+```powershell
+pytest tests/ -v
+```
 
 ---
 
@@ -179,7 +189,7 @@ pytest tests/test_processor.py -v
 pytest tests/test_inference.py -v
 ```
 
-Expected result: **33 passed** (18 unit + 15 integration).
+Expected result: 33 passed (18 unit + 15 integration).
 
 ---
 
