@@ -7,7 +7,19 @@ Uses synthetic numpy arrays to simulate MRI scan inputs.
 import numpy as np
 import pytest
 
-from src.processor import create_segmentation, estimate_location, estimate_severity
+from src.processor import create_segmentation, estimate_location, estimate_severity, extract_brain_region
+
+
+# ------------------------------------------------------------------ #
+# extract_brain_region tests
+# ------------------------------------------------------------------ #
+class TestExtractBrainRegion:
+    def test_returns_numpy_array(self, synthetic_mri_rgb):
+        cropped = extract_brain_region(synthetic_mri_rgb)
+        assert isinstance(cropped, np.ndarray)
+
+    def test_handles_none_input(self):
+        assert extract_brain_region(None) is None
 
 
 # ------------------------------------------------------------------ #
@@ -112,7 +124,7 @@ class TestEstimateSeverity:
         (96.0, 6.0,  "High"),
         (85.0, 4.0,  "Moderate"),
         (70.0, 0.0,  "Low"),
-        (40.0, 0.0,  "Uncertain"),
+        (50.0, 0.0,  "Borderline"),
     ])
     def test_severity_classification(self, confidence, area, expected_severity):
         severity, color = estimate_severity(confidence, area)

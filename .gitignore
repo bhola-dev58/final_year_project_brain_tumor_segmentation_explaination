@@ -11,11 +11,30 @@ env/
 .env/
 .env
 
+# Exposed secrets / temp files
+f.txt
+*.key
+
 # Large Folders / Datasets / Weights
 datasets/
 models/
 test_images/
 brain-tumor-2d-dataset/
+
+# Zip archives (large binary files)
+*.zip
+
+# Imported chat history / IDE session artifacts
+1bc5afd1-2f93-413f-b95d-1546b40842d6/
+
+# Training reference directories (not part of deployable project)
+full code i used for training data module to get this/
+training code/
+
+# Research PDF reference directories (copyrighted, large)
+Base paper/
+IEEE pattern of research paper/
+already collected info/
 
 # IDE & Tooling
 .gradio/

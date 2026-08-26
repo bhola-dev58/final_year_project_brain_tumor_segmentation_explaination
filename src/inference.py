@@ -21,23 +21,35 @@ tf.get_logger().setLevel('ERROR')
 from src.config import (
     DENSENET_PATH,
     INCEPTION_PATH,
+    EFFNET_PATH,
     CLASSES,
     IMG_SIZE_CLASSIFY,
     GRADCAM_CLEAN_THRESHOLD,
     GRADCAM_OVERLAY_OPACITY,
+    DENSENET_VOTE_WEIGHT,
+    INCEPTION_VOTE_WEIGHT,
+    EFFNET_VOTE_WEIGHT,
     logger
 )
-from src.processor import create_segmentation, estimate_location, estimate_severity
+from src.processor import create_segmentation, estimate_location, estimate_severity, extract_brain_region
 
 # Module-level model initialization
 logger.info("Initializing ensemble models...")
 try:
     model_dense = tf.keras.models.load_model(DENSENET_PATH, compile=False)
     model_inc = tf.keras.models.load_model(INCEPTION_PATH, compile=False)
+    model_effnet = None
+    if os.path.exists(EFFNET_PATH):
+        try:
+            model_effnet = tf.keras.models.load_model(EFFNET_PATH, compile=False)
+            logger.info("EfficientNetV2S loaded for Tri-Ensemble.")
+        except Exception as ex:
+            logger.warning(f"Could not load EfficientNetV2S: {ex}")
     logger.info("Models loaded successfully.")
 except Exception as e:
     logger.critical(f"Failed to load weight files from models directory: {e}", exc_info=True)
     raise e
+
 
 # Dynamic Grad-CAM sub-model construction using the last 4D conv layer of DenseNet121
 _last_conv_layer_name = None
@@ -125,14 +137,37 @@ def predict_tumor_logic(img: Optional[np.ndarray]) -> Dict[str, Any]:
         if img.dtype != np.uint8:
             img = np.uint8(np.clip(img, 0, 255))
 
-        # Prep image for models
-        img_resized = cv2.resize(img, IMG_SIZE_CLASSIFY)
-        img_array = np.expand_dims(img_resized, axis=0).astype(np.float32) / 255.0
+        # Prep image for models (crop main brain tissue region first to eliminate skull/background artifacts)
+        img_cropped = extract_brain_region(img)
 
-        # Perform Ensemble Classification (Soft Voting)
-        pred_dense = model_dense.predict(img_array, verbose=0)
-        pred_inc = model_inc.predict(img_array, verbose=0)
-        avg_pred = (pred_dense + pred_inc) / 2.0
+        # Dynamic shape resolution (DenseNet: 224x224, InceptionV3: 299x299, EfficientNet: 224x224)
+        dense_shape = (model_dense.input_shape[2], model_dense.input_shape[1]) if model_dense.input_shape and model_dense.input_shape[1] else (224, 224)
+        inc_shape = (model_inc.input_shape[2], model_inc.input_shape[1]) if model_inc.input_shape and model_inc.input_shape[1] else (299, 299)
+
+        img_dense_resized = cv2.resize(img_cropped, dense_shape)
+        img_dense_array = np.expand_dims(img_dense_resized, axis=0).astype(np.float32) / 255.0
+
+        img_inc_resized = cv2.resize(img_cropped, inc_shape)
+        img_inc_array = np.expand_dims(img_inc_resized, axis=0).astype(np.float32) / 255.0
+
+        pred_dense = model_dense.predict(img_dense_array, verbose=0)
+        pred_inc = model_inc.predict(img_inc_array, verbose=0)
+
+        if model_effnet is not None:
+            eff_shape = (model_effnet.input_shape[2], model_effnet.input_shape[1]) if model_effnet.input_shape and model_effnet.input_shape[1] else (224, 224)
+            img_eff_resized = cv2.resize(img_cropped, eff_shape)
+            img_eff_array = np.expand_dims(img_eff_resized, axis=0).astype(np.float32) / 255.0
+            pred_eff = model_effnet.predict(img_eff_array, verbose=0)
+
+            # Tri-Ensemble Soft Voting (35% DenseNet + 30% Inception + 35% EfficientNet)
+            avg_pred = (pred_dense * DENSENET_VOTE_WEIGHT) + (pred_inc * INCEPTION_VOTE_WEIGHT) + (pred_eff * EFFNET_VOTE_WEIGHT)
+        else:
+            # Dual-Ensemble Fallback
+            total_w = DENSENET_VOTE_WEIGHT + INCEPTION_VOTE_WEIGHT
+            avg_pred = (pred_dense * (DENSENET_VOTE_WEIGHT / total_w)) + (pred_inc * (INCEPTION_VOTE_WEIGHT / total_w))
+
+
+
 
         class_idx = int(np.argmax(avg_pred))
         class_name = CLASSES[class_idx]
@@ -148,7 +183,7 @@ def predict_tumor_logic(img: Optional[np.ndarray]) -> Dict[str, Any]:
 
         try:
             # Generate explainability overlays
-            heatmap_raw = make_gradcam_heatmap(img_array)
+            heatmap_raw = make_gradcam_heatmap(img_dense_array)
             heatmap_resized = cv2.resize(heatmap_raw, (img.shape[1], img.shape[0]))
 
             # Discard weak background activations

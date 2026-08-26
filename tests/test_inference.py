@@ -86,7 +86,7 @@ class TestPredictTumorLogic:
         assert seg.shape[2] == 3
 
     def test_severity_is_valid_string(self, prediction_result):
-        valid_severities = {"High", "Moderate", "Low", "Uncertain"}
+        valid_severities = {"High", "Moderate", "Low", "Borderline", "Uncertain"}
         assert prediction_result["severity"] in valid_severities
 
     def test_severity_color_is_hex(self, prediction_result):

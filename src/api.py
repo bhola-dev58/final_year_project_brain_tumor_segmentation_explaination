@@ -117,7 +117,7 @@ async def predict(
             - is_tumor (bool): Whether a tumor was detected.
             - location (str): Estimated anatomical lobe location.
             - tumor_percentage (float): Tumor area as % of total scan.
-            - severity (str): Severity category (High / Moderate / Low / Uncertain).
+            - severity (str): Severity category (High / Moderate / Low / Borderline / Uncertain).
             - severity_color (str): Corresponding hex color for the severity.
             - inference_time (float): Time taken for inference in seconds.
             - gradcam_overlay_b64 (str): Base64-encoded Grad-CAM overlay PNG.

@@ -255,12 +255,14 @@ def build_html_outputs(data: dict) -> Tuple[
         </div>
         """
         
+        borderline_note = ' <span style="color:#f59e0b; font-weight:600;">(Borderline confidence — clinical review recommended.)</span>' if data['severity'] == "Borderline" else ""
         explanation_text = f"""
-        The AI has detected a <strong style="color:#ef4444;">{data['class_name']}</strong> with <strong style="color:#ef4444;">{data['confidence']:.1f}% confidence</strong>.
+        The AI has detected a <strong style="color:#ef4444;">{data['class_name']}</strong> with <strong style="color:#ef4444;">{data['confidence']:.1f}% confidence</strong>.{borderline_note}
         The tumor is primarily located in the <strong>{data['location']}</strong> and covers approximately <strong>{data['tumor_percentage']:.1f}%</strong> of the brain area shown. 
         Based on the size and confidence, the estimated severity is <strong style="color:{data['severity_color']};">{data['severity']}</strong>.
         The Grad-CAM heatmap indicates the regions the model focused on to make this diagnosis.
         """
+
         
     else:
         properties_html = f"""

@@ -9,9 +9,54 @@ from src.config import (
     COLOR_SEVERITY_HIGH,
     COLOR_SEVERITY_MODERATE,
     COLOR_SEVERITY_LOW,
+    COLOR_SEVERITY_BORDERLINE,
     COLOR_SEVERITY_UNCERTAIN,
     logger
 )
+
+def extract_brain_region(img: np.ndarray) -> np.ndarray:
+    """
+    Extracts the primary brain bounding region by cropping out dark background padding.
+    If cropping is invalid or too small, returns original image.
+
+    Args:
+        img: Input image array (uint8).
+
+    Returns:
+        Cropped numpy array containing the focused brain region, or original image.
+    """
+    if img is None:
+        return img
+    try:
+        h, w = img.shape[:2]
+        if len(img.shape) == 3:
+            gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = img.copy()
+
+        # Threshold background vs brain tissue
+        _, thresh = cv2.threshold(gray, 15, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return img
+
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, bw, bh = cv2.boundingRect(largest_contour)
+
+        # Ensure cropped region is at least 25% of original dimensions
+        if bw > w * 0.25 and bh > h * 0.25:
+            pad_x = int(w * 0.02)
+            pad_y = int(h * 0.02)
+            x1 = max(0, x - pad_x)
+            y1 = max(0, y - pad_y)
+            x2 = min(w, x + bw + pad_x)
+            y2 = min(h, y + bh + pad_y)
+            return img[y1:y2, x1:x2]
+        return img
+    except Exception as e:
+        logger.error(f"Error during brain region extraction: {e}")
+        return img
+
 
 def create_segmentation(
     heatmap_raw: np.ndarray,
@@ -168,7 +213,9 @@ def estimate_severity(
     Returns:
         Tuple of (Severity Category String, Hex Color Code).
     """
-    if confidence > 95 and tumor_percentage > 5:
+    if confidence < 55.0:
+        return "Borderline", COLOR_SEVERITY_BORDERLINE
+    elif confidence > 95 and tumor_percentage > 5:
         return "High", COLOR_SEVERITY_HIGH
     elif confidence > 80 and tumor_percentage > 3:
         return "Moderate", COLOR_SEVERITY_MODERATE
@@ -176,3 +223,4 @@ def estimate_severity(
         return "Low", COLOR_SEVERITY_LOW
     else:
         return "Uncertain", COLOR_SEVERITY_UNCERTAIN
+

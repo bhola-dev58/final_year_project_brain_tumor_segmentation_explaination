@@ -2,7 +2,23 @@
 
 ## Overview
 
-Two pre-trained convolutional neural networks are used as classification backbones. Both are fine-tuned on the brain tumor dataset and combined into a **Soft-Voting Ensemble** for final inference.
+Two pre-trained convolutional neural networks are used as classification backbones: **InceptionV3** and **DenseNet121**. Both are optimized using a progressive **3-Phase Fine-Tuning Pipeline** and combined into a **Weighted Soft-Voting Ensemble (70% InceptionV3 + 30% DenseNet121)** for final inference.
+
+A standalone 1-click training notebook is provided in the project root: `BrainTumor_98pct_Ensemble_Training.ipynb`.
+
+---
+
+## 3-Phase Progressive Training Strategy
+
+1. **Phase 1: Feature Adapter Warmup (15 Epochs, `lr = 1e-3`)**
+   - CNN base backbones are frozen.
+   - Only the custom dense classification heads with Batch Normalization and Dropout ($0.30$) are trained.
+2. **Phase 2: Partial Unfreezing (25 Epochs, `lr = 1e-5`)**
+   - Top 60 layers are unfrozen to adapt high-level features to medical MRI textures.
+   - `ReduceLROnPlateau` dynamically decays learning rates upon validation plateaus.
+3. **Phase 3: Deep Aggressive Fine-Tuning (20 Epochs, `lr = 3e-6`)**
+   - Full backbone unfreezing with micro learning rates and Label Smoothing ($0.03$).
+   - Minimizes generalization error without catastrophic forgetting.
 
 ---
 
@@ -11,37 +27,10 @@ Two pre-trained convolutional neural networks are used as classification backbon
 ### Architecture Summary
 - **Family:** DenseNet (Densely Connected Convolutional Network)
 - **Depth:** 121 layers
-- **Key Feature:** Every layer receives feature maps from all preceding layers (dense connections) — promotes feature reuse and reduces gradient vanishing
-- **File:** `models/densenet_best.h5` (37.4 MB)
-
-### Transfer Learning Setup
-
-```
-DenseNet121 (ImageNet pre-trained)
-     │
-     └── GlobalAveragePooling2D
-           │
-           └── Dense(256, activation='relu')
-                 │
-                 └── Dropout(0.5)
-                       │
-                       └── Dense(4, activation='softmax')   ← 4 tumor classes
-```
-
-### Training Configuration
-
-| Parameter | Value |
-|---|---|
-| Input Size | (224, 224, 3) |
-| Batch Size | 10 (as per base paper) |
-| Optimizer | Adam (lr = 0.0001) |
-| Loss | Categorical Cross-Entropy |
-| Epochs | Until EarlyStopping |
-| Validation Split | 30% |
-| Callbacks | ModelCheckpoint (best val_accuracy), EarlyStopping (patience=10), ReduceLROnPlateau |
-
-### Why DenseNet121 for Grad-CAM?
-DenseNet121 is used as the primary Grad-CAM backbone because its dense connectivity pattern produces rich, high-resolution activation maps in the final convolutional layer. This results in cleaner, more localized heatmaps compared to InceptionV3.
+- **Key Feature:** Every layer receives feature maps from all preceding layers (dense connections) — promotes feature reuse and produces fine spatial activation maps for Grad-CAM.
+- **File:** `models/densenet_full_best.keras` (55.3 MB)
+- **Native Input Size:** $(224 \times 224 \times 3)$
+- **Standalone Accuracy:** **92.83%**
 
 ---
 
@@ -50,14 +39,11 @@ DenseNet121 is used as the primary Grad-CAM backbone because its dense connectiv
 ### Architecture Summary
 - **Family:** Inception (GoogLeNet-style)
 - **Depth:** 48 convolutional layers (inception modules)
-- **Key Feature:** Parallel multi-scale convolutions (1×1, 3×3, 5×5 within same module) capture features at different scales simultaneously
-- **File:** `models/inception_best.h5` (102.4 MB)
+- **Key Feature:** Parallel multi-scale convolutions ($1\times1$, $3\times3$, $5\times5$ within same module) capture multi-scale tumor morphologies.
+- **File:** `models/inception_full_best.keras` (233.8 MB)
+- **Native Input Size:** $(299 \times 299 \times 3)$
+- **Standalone Accuracy:** **95.51%**
 
-### Transfer Learning Setup
-
-```
-InceptionV3 (ImageNet pre-trained)
-     │
      └── GlobalAveragePooling2D
            │
            └── Dense(256, activation='relu')

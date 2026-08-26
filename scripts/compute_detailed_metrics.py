@@ -23,31 +23,47 @@ datagen = ImageDataGenerator(
     validation_split=0.30
 )
 
-val_data = datagen.flow_from_directory(
+model_dense = tf.keras.models.load_model(DENSENET_PATH, compile=False)
+model_inc = tf.keras.models.load_model(INCEPTION_PATH, compile=False)
+
+dense_shape = (model_dense.input_shape[1], model_dense.input_shape[2]) if model_dense.input_shape and model_dense.input_shape[1] else (224, 224)
+inc_shape = (model_inc.input_shape[1], model_inc.input_shape[2]) if model_inc.input_shape and model_inc.input_shape[1] else (299, 299)
+
+val_data_dense = datagen.flow_from_directory(
     dataset_path,
-    target_size=(224, 224),
+    target_size=dense_shape,
     batch_size=16,
     class_mode='categorical',
     subset='validation',
+    seed=42,
     shuffle=False
 )
 
-true_labels = val_data.classes
-class_indices = val_data.class_indices
+val_data_inc = datagen.flow_from_directory(
+    dataset_path,
+    target_size=inc_shape,
+    batch_size=16,
+    class_mode='categorical',
+    subset='validation',
+    seed=42,
+    shuffle=False
+)
+
+true_labels = val_data_dense.classes
+class_indices = val_data_dense.class_indices
 target_names = ['No Tumor', 'Glioma Tumor', 'Meningioma Tumor', 'Pituitary Tumor']
 
 print(f"Loaded {len(true_labels)} validation samples across classes: {class_indices}")
 
-model_dense = tf.keras.models.load_model(DENSENET_PATH, compile=False)
-model_inc = tf.keras.models.load_model(INCEPTION_PATH, compile=False)
-
 print("Predicting DenseNet121...")
-pred_dense = model_dense.predict(val_data, verbose=0)
+pred_dense = model_dense.predict(val_data_dense, verbose=0)
 print("Predicting InceptionV3...")
-pred_inc = model_inc.predict(val_data, verbose=0)
+pred_inc = model_inc.predict(val_data_inc, verbose=0)
 
-ensemble_probs = (pred_dense + pred_inc) / 2.0
+from src.config import DENSENET_VOTE_WEIGHT, INCEPTION_VOTE_WEIGHT
+ensemble_probs = (pred_dense * DENSENET_VOTE_WEIGHT) + (pred_inc * INCEPTION_VOTE_WEIGHT)
 ensemble_preds = np.argmax(ensemble_probs, axis=1)
+
 
 # Metrics
 overall_acc = accuracy_score(true_labels, ensemble_preds)

@@ -26,13 +26,16 @@ The project was developed as a Final Year Major Project at **CMR Institute of Te
 
 What makes BrainTumorXAI different from typical classification-only systems:
 
-1. **Soft-Voting Ensemble** — Instead of relying on a single model, two architecturally different networks (DenseNet121 + InceptionV3) each predict class probabilities, which are averaged. This reduces individual model bias and improves robustness.
+1. **Weighted Soft-Voting Ensemble (95.59% Accuracy)** — Two complementary backbones (InceptionV3 at native $299\times299$ + DenseNet121 at $224\times224$) combine multi-scale receptive fields with dense feature reuse, minimizing false positives (99.33% healthy scan precision).
 
-2. **Grad-CAM Guided Segmentation** — Most systems treat classification and segmentation as two completely independent tasks requiring two separate trained models. BrainTumorXAI reuses the classification network's Grad-CAM activation map to guide a lightweight morphological segmentation pipeline — eliminating the cost and complexity of a dedicated segmentation model.
+2. **Automated Brain Region Isolation** — Preprocessing automatically identifies and crops the cerebrum boundary using contour analysis, removing extraneous background noise and skull artifacts before feature extraction.
 
-3. **Anatomical Location Estimation** — The peak activation coordinate is mapped to brain anatomy (Frontal, Parietal, Occipital lobe × Left/Right × Superior/Inferior) and shown to the clinician directly.
+3. **Grad-CAM Guided Segmentation** — Most systems treat classification and segmentation as two completely independent tasks requiring two separate trained models. BrainTumorXAI reuses the classification network's Grad-CAM activation map to guide a lightweight morphological segmentation pipeline — eliminating the cost and complexity of a dedicated segmentation model.
 
-4. **Severity Rating** — Combines classification confidence and tumor area percentage into a 4-level severity indicator (High / Moderate / Low / Uncertain).
+4. **Anatomical Location Estimation** — The peak activation coordinate is mapped to brain anatomy (Frontal, Parietal, Occipital lobe × Left/Right × Superior/Inferior) and shown to the clinician directly.
+
+5. **Clinical Severity & Borderline Flagging** — Combines classification confidence and tumor area percentage into a 5-level clinical indicator (High / Moderate / Low / Borderline / Uncertain) to flag low-confidence (<55%) predictions for manual radiological review.
+
 
 ---
 
