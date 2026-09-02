@@ -45,8 +45,13 @@ reports/*.pdf
 .pytest_cache/
 1bc5afd1-2f93-413f-b95d-1546b40842d6/
 
-# Training reference directories
+# Training reference directories & local-only docs
 full code i used for training data module to get this/
+BrainTumor_98pct_Ensemble_Training.ipynb
+PREVIOUS_CHAT_SUMMARY.md
+PROJECT_RULES.md
+brain_tumor_xai_paper.tex
+copy_images.py
 
 # OS-generated files
 .DS_Store
