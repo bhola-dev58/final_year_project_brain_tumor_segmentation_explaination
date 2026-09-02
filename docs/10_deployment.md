@@ -22,8 +22,8 @@ No GPU is required. The system runs fully on CPU.
 ### Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/bhola-dev58/final_year_project_brain_tumor_segmentation_explaination.git
-cd final_year_project_brain_tumor_segmentation_explaination
+git clone https://github.com/bhola-dev58/brain-xai-ensemble.git
+cd brain-xai-ensemble
 ```
 
 ---

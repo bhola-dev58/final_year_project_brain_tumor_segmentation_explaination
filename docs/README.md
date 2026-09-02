@@ -27,8 +27,8 @@ Welcome to the full technical documentation for **BrainTumorXAI**, an explainabl
 
 ```bash
 # 1. Clone and enter project
-git clone https://github.com/bhola-dev58/final_year_project_brain_tumor_segmentation_explaination.git
-cd Brain_Tumor_Project
+git clone https://github.com/bhola-dev58/brain-xai-ensemble.git
+cd brain-xai-ensemble
 
 # 2. Create virtual environment
 python -m venv venv && source venv/bin/activate
