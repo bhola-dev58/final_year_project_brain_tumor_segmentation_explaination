@@ -88,45 +88,71 @@ flowchart TD
 ## Project Structure
 
 ```
-Brain_Tumor_Project/
-├── app.py                                   # Gradio Web Dashboard entrypoint
-├── Dockerfile                               # Container specification for CPU deployment
-├── .dockerignore                            # Container ignore exclusions
-├── .gitignore                              # Git exclusion rules
-├── requirements.txt                         # Pinned Python dependencies
-├── BrainTumor_98pct_Ensemble_Training.ipynb # Full cloud training pipeline (Kaggle/Colab)
-├── brain_tumor_xai_paper.tex                # IEEE Research Paper LaTeX source
+brain-xai-ensemble/
+├── app.py                                    # Gradio web dashboard entrypoint
+├── Dockerfile                                # Container specification for CPU deployment
+├── .dockerignore                             # Container build exclusions
+├── .gitignore                                # Git exclusion rules
+├── requirements.txt                          # Pinned Python dependencies
 │
-├── src/                                     # Application source package
+├── src/                                      # Core application source package
 │   ├── __init__.py
-│   ├── config.py                            # Centralized paths, ensemble weights, thresholds
-│   ├── inference.py                         # Multi-model prediction & Grad-CAM++ pipeline
-│   ├── processor.py                         # Skull-stripping, boundary extraction & severity
-│   ├── report_generator.py                  # Clinical PDF diagnostic report engine
-│   ├── theme.py                             # Medical UI design system tokens
-│   ├── dashboard.py                         # Gradio UI components and event listeners
-│   └── api.py                               # FastAPI REST backend endpoints
+│   ├── config.py                             # Centralized paths, ensemble weights, thresholds
+│   ├── inference.py                          # Multi-model prediction and Grad-CAM++ pipeline
+│   ├── processor.py                          # Skull stripping, boundary extraction, severity grading
+│   ├── report_generator.py                   # Clinical PDF diagnostic report engine
+│   ├── theme.py                              # Medical UI design system tokens
+│   ├── dashboard.py                          # Gradio UI components and event listeners
+│   └── api.py                                # FastAPI REST backend endpoints
 │
-├── scripts/                                 # Evaluation and benchmarking utilities
-│   ├── compute_detailed_metrics.py          # Validation metrics and confusion matrix
-│   ├── boost_metrics_tta.py                 # Multi-pass TTA evaluation pipeline
-│   ├── boost_metrics_v3.py                  # Calibrated 10-pass evaluation pipeline
-│   ├── evaluate_segmentation.py             # Dice score and IoU evaluation
-│   ├── evaluate_models.py                   # Standalone model verification
-│   └── run_api.py                           # Standalone API launcher
+├── scripts/                                  # Evaluation and benchmarking utilities
+│   ├── __init__.py
+│   ├── boost_metrics_tta.py                  # Multi-pass TTA evaluation pipeline
+│   ├── boost_metrics_v3.py                   # Calibrated 10-pass evaluation pipeline
+│   ├── compute_detailed_metrics.py           # Validation metrics and confusion matrix
+│   ├── evaluate_models.py                    # Standalone per-model verification
+│   ├── evaluate_segmentation.py              # Dice score and IoU segmentation evaluation
+│   ├── init_models.py                        # Model initialization and weight loader
+│   ├── run_api.py                            # Standalone API server launcher
+│   └── train_segmentation.py                 # Segmentation model training script
 │
-├── tests/                                   # Automated test suite
-│   ├── test_processor.py                    # Unit tests for preprocessing and morphology
-│   ├── test_inference.py                    # Integration tests for inference engine
-│   └── test_full_stack.py                   # End-to-end validation tests
+├── tests/                                    # Automated test suite
+│   ├── __init__.py
+│   ├── test_processor.py                     # Unit tests for preprocessing and morphology
+│   ├── test_inference.py                     # Integration tests for inference engine
+│   └── test_full_stack.py                    # End-to-end validation tests
 │
-├── assets/                                  # Static media and stylesheets
-│   ├── styles.css                           # Clinical UI stylesheet
-│   └── system_architecture_block_diagram.png# High-resolution architectural diagram
+├── assets/                                   # Static media and stylesheets
+│   ├── styles.css                            # Clinical UI stylesheet
+│   ├── ensemble_confusion_matrix.png         # Validation confusion matrix visualization
+│   ├── intermediate_pipeline_outputs.png     # Step-by-step pipeline output visualization
+│   └── system_architecture_block_diagram.png # High-resolution system architecture diagram
 │
-├── models/                                  # Fine-tuned model checkpoints
-├── datasets/                                # MRI dataset storage (image/ and mask/)
-└── reports/                                 # Generated patient PDF diagnostic reports
+├── docs/                                     # Detailed technical documentation
+│   ├── README.md                             # Documentation index
+│   ├── 01_project_overview.md
+│   ├── 02_architecture.md
+│   ├── 03_dataset.md
+│   ├── 04_models_and_training.md
+│   ├── 05_inference_pipeline.md
+│   ├── 06_api_reference.md
+│   ├── 07_dashboard_ui.md
+│   ├── 08_configuration.md
+│   ├── 09_testing.md
+│   ├── 10_deployment.md
+│   ├── 11_results_and_metrics.md
+│   └── 12_research_paper.md
+│
+├── models/                                   # Fine-tuned model weight checkpoints (git-ignored)
+│   ├── convnext_full_best.keras
+│   ├── densenet_best.h5
+│   ├── densenet_full_best.keras
+│   ├── inception_best.h5
+│   └── inception_full_best.keras
+│
+├── datasets/                                 # MRI dataset storage (git-ignored)
+├── test_images/                              # Sample test MRI images for quick validation
+└── reports/                                  # Generated patient PDF diagnostic reports (git-ignored)
 ```
 
 ---

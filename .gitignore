@@ -26,6 +26,7 @@ models.zip
 test_images.zip
 *.zip
 
+
 # Research PDF reference directories (large binaries)
 Base paper/
 IEEE pattern of research paper/
@@ -33,7 +34,7 @@ already collected info/
 research paper bases for the model conNext /
 
 # Generated Runtime Files & Reports
-reports/*.pdf
+reports
 *.log
 
 # IDE, Editor & Agent Configuration
