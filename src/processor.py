@@ -2,8 +2,6 @@ from typing import Tuple, Union
 import cv2
 import numpy as np
 from src.config import (
-    GRADCAM_ROI_THRESHOLD,
-    GRADCAM_MAX_TUMOR_PCT_FALLBACK,
     COLOR_TUMOR_SEGMENT,
     SEGMENTATION_OPACITY,
     COLOR_SEVERITY_HIGH,
@@ -60,29 +58,32 @@ def extract_brain_region(img: np.ndarray) -> np.ndarray:
 
 def create_segmentation(
     heatmap_raw: np.ndarray,
-    original_img: np.ndarray
+    original_img: np.ndarray,
+    brain_mask: np.ndarray = None
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """
     Creates a segmentation mask using the provided classification heatmap.
-    Uses intensity thresholding strictly within the heatmap's peak region.
+    Now brain-mask gated: no tumor pixels can appear outside brain boundary.
 
     Args:
-        heatmap_raw: 2D numpy array representing the raw activation heatmap.
+        heatmap_raw: 2D numpy array representing the cleaned activation heatmap.
         original_img: 3D or 2D numpy array containing the original MRI scan.
+        brain_mask: Optional binary mask (H, W, uint8) from _compute_brain_mask().
+                    If None, falls back to threshold-based approach.
 
     Returns:
         Tuple containing:
             - Segmented image with semi-transparent overlay.
             - Binary mask of the segmented tumor (same spatial dimensions).
-            - Percentage of total scan area covered by the tumor.
+            - Percentage of brain area covered by the tumor.
     """
     try:
         h, w = original_img.shape[:2]
-        
-        # 1. Resize and normalize heatmap
+
+        # 1. Resize and normalize heatmap to full image resolution
         hm = cv2.resize(heatmap_raw, (w, h)).astype(np.float32)
         hm_max = hm.max()
-        if hm_max > 0:
+        if hm_max > 1e-8:
             hm = hm / hm_max
 
         # 2. Get grayscale image
@@ -90,75 +91,108 @@ def create_segmentation(
             gray = cv2.cvtColor(original_img, cv2.COLOR_RGB2GRAY)
         else:
             gray = original_img.copy()
-            
-        # 3. Create a region of interest (ROI) from the most confident heatmap area
-        # Only look at the top activations to avoid outer brain parts/scaffolding
-        roi_mask = np.uint8(hm > GRADCAM_ROI_THRESHOLD) * 255
-        
-        # Clean up the ROI
-        k_roi = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+
+        # 3. Compute brain mask if not provided
+        if brain_mask is None:
+            _, brain_mask = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
+            contours, _ = cv2.findContours(brain_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest_c = max(contours, key=cv2.contourArea)
+                brain_mask = np.zeros((h, w), dtype=np.uint8)
+                cv2.drawContours(brain_mask, [largest_c], -1, 255, cv2.FILLED)
+            else:
+                brain_mask = np.ones((h, w), dtype=np.uint8) * 255
+
+        # Brain area in pixels (used for % calculation)
+        brain_area_px = np.sum(brain_mask > 0)
+        if brain_area_px == 0:
+            brain_area_px = h * w
+
+        # 4. ROI mask from top heatmap activations, constrained to brain interior
+        # Use 70th percentile of brain-interior heatmap as threshold
+        brain_hm_vals = hm[brain_mask > 0]
+        if len(brain_hm_vals) == 0 or brain_hm_vals.max() == 0:
+            return original_img.copy(), np.zeros((h, w), dtype=np.uint8), 0.0
+
+        roi_threshold = np.percentile(brain_hm_vals, 70)  # top 30% of brain activations
+        roi_threshold = max(roi_threshold, 0.45)          # never go below 0.45
+
+        roi_mask = np.uint8(hm > roi_threshold) * 255
+        roi_mask = np.uint8(roi_mask & brain_mask)        # strictly inside brain
+
+        # Clean up ROI: morphological close to fill gaps
+        k_roi = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))
         roi_mask = cv2.morphologyEx(roi_mask, cv2.MORPH_CLOSE, k_roi)
-        
-        # Keep only the largest blob in ROI to avoid scattered attention points
+
+        # Keep only the largest connected blob inside ROI
         contours, _ = cv2.findContours(roi_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return original_img.copy(), np.zeros((h, w), dtype=np.uint8), 0.0
-            
+
         largest_roi = max(contours, key=cv2.contourArea)
         roi_mask = np.zeros((h, w), dtype=np.uint8)
         cv2.drawContours(roi_mask, [largest_roi], -1, 255, cv2.FILLED)
 
-        # 4. Extract pixels inside ROI and apply precise intensity thresholding
+        # 5. Precise tumor pixel detection using Otsu within ROI
         roi_pixels = gray[roi_mask > 0]
         if len(roi_pixels) < 50:
             return original_img.copy(), np.zeros((h, w), dtype=np.uint8), 0.0
-            
-        # Tumors are generally the brightest part in this focused ROI
+
+        # Otsu threshold on ROI-interior gray pixels
         try:
-            otsu_thresh, _ = cv2.threshold(roi_pixels, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            roi_pixels_u8 = roi_pixels.astype(np.uint8)
+            otsu_thresh, _ = cv2.threshold(roi_pixels_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         except Exception:
-            otsu_thresh = np.mean(roi_pixels) + np.std(roi_pixels)
-            
-        # Create the actual tumor mask
-        tumor_mask = np.uint8((gray > otsu_thresh) & (roi_mask > 0)) * 255
-        
-        # 5. Clean up the tumor mask (remove noise, smooth edges)
+            otsu_thresh = float(np.mean(roi_pixels) + 0.5 * np.std(roi_pixels))
+
+        # Tumor mask: bright pixels inside ROI AND inside brain
+        tumor_mask = np.uint8((gray.astype(np.float32) > otsu_thresh) &
+                               (roi_mask > 0) &
+                               (brain_mask > 0)) * 255
+
+        # 6. Morphological cleanup: remove noise, smooth edges
         k_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         tumor_mask = cv2.morphologyEx(tumor_mask, cv2.MORPH_OPEN, k_clean, iterations=1)
-        tumor_mask = cv2.morphologyEx(tumor_mask, cv2.MORPH_CLOSE, k_clean, iterations=2)
-        
-        # Keep largest tumor blob inside the ROI
+        tumor_mask = cv2.morphologyEx(tumor_mask, cv2.MORPH_CLOSE, k_clean, iterations=3)
+
+        # Keep largest connected tumor blob
         contours, _ = cv2.findContours(tumor_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             largest_tumor = max(contours, key=cv2.contourArea)
             tumor_mask = np.zeros((h, w), dtype=np.uint8)
             cv2.drawContours(tumor_mask, [largest_tumor], -1, 255, cv2.FILLED)
-            
-        # Smooth the final mask edges nicely using Gaussian Blur
-        tumor_mask = cv2.GaussianBlur(tumor_mask, (7, 7), 0)
+
+        # Smooth final mask edges
+        tumor_mask = cv2.GaussianBlur(tumor_mask, (9, 9), sigmaX=2)
         _, tumor_mask = cv2.threshold(tumor_mask, 127, 255, cv2.THRESH_BINARY)
-        
-        # Check if we found anything meaningful
-        area_pct = (np.sum(tumor_mask > 0) / (h * w)) * 100
-        if area_pct == 0 or area_pct > GRADCAM_MAX_TUMOR_PCT_FALLBACK: # If too huge or zero, fallback to simple ROI
+
+        # 7. Area percentage — calculated as % of BRAIN area (not whole image)
+        tumor_px = np.sum(tumor_mask > 0)
+        area_pct = (tumor_px / brain_area_px) * 100
+
+        # Fallback: if tumor mask is too small or unrealistically large, use ROI
+        if area_pct == 0 or area_pct > 30.0:
             tumor_mask = roi_mask
-            area_pct = (np.sum(tumor_mask > 0) / (h * w)) * 100
-            
-        # 6. Apply soft transparent red fill (no borders)
+            tumor_px = np.sum(tumor_mask > 0)
+            area_pct = (tumor_px / brain_area_px) * 100
+
+        # 8. Apply semi-transparent red fill overlay
         result = original_img.copy().astype(np.float32)
         red_layer = np.zeros_like(result)
         red_layer[:, :] = COLOR_TUMOR_SEGMENT
-        
-        # Semi-transparent opacity overlay (soft, no border)
-        tumor_px = tumor_mask > 0
-        opacity_base = 1.0 - SEGMENTATION_OPACITY
-        result[tumor_px] = result[tumor_px] * opacity_base + red_layer[tumor_px] * SEGMENTATION_OPACITY
+
+        tumor_bool = tumor_mask > 0
+        result[tumor_bool] = (
+            result[tumor_bool] * (1.0 - SEGMENTATION_OPACITY) +
+            red_layer[tumor_bool] * SEGMENTATION_OPACITY
+        )
         result = np.clip(result, 0, 255).astype(np.uint8)
 
         return result, tumor_mask, area_pct
 
     except Exception as e:
         logger.error(f"Error during tumor segmentation: {e}", exc_info=True)
+        h, w = original_img.shape[:2]
         return original_img.copy(), np.zeros((h, w), dtype=np.uint8), 0.0
 
 

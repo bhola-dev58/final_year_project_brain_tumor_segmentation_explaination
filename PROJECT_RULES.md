@@ -10,3 +10,9 @@
 3. **Git Version Control**: 
    - When asked to commit, **ONLY** use `git commit`. 
    - **NEVER** use `git push`. The user will handle pushing the code manually.
+
+4. **Frontend Styling & CSS Guidelines**:
+   - **Strictly NO Inline CSS (`style="..."`)**: Never write inline CSS attributes in HTML templates or UI components.
+   - **Always Use External CSS**: Define all styling in external CSS files (e.g. `assets/styles.css`).
+   - **CSS Class & ID Selectors**: Link styles exclusively through semantic class names and ID selectors.
+   - **No Unicode Emojis**: Use clean textual tags or icons instead of emojis in UI strings, comments, and console prints.

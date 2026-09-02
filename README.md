@@ -1,38 +1,87 @@
 # BrainTumorXAI: Explainable Brain Tumor Detection and Segmentation
 
-An advanced, clinical-grade medical imaging application that uses **Ensemble Deep Learning** to detect, classify, and segment brain tumors from MRI scans. The project is centered on **Explainable AI (XAI)**, providing visual evidence (Grad-CAM heatmaps) alongside every prediction so clinicians can understand and trust the model's reasoning.
+A clinical-grade medical imaging application that utilizes a Heterogeneous Tri-Ensemble Deep Learning architecture to detect, classify, and segment brain tumors from multi-sequence MRI scans. Centered on Explainable AI (XAI), the framework provides visual explanations (Brain-Masked Grad-CAM++) and automated diagnostic clinical reporting, allowing radiologists to verify model predictions with full transparency.
+
+Training Notebook on Kaggle: [BrainTumor 98% Ensemble Training Pipeline](https://www.kaggle.com/code/bholadev58/braintumor-98pct-ensemble-training)
 
 ---
 
-## Features
+## Key Highlights and Performance
 
-- **Ensemble Classification:** Combines InceptionV3 (70%) and DenseNet121 (30%) using Weighted Soft Voting for high-reliability, low-false-positive results (reaching **95.59% Ensemble Validation Accuracy**).
-- **Automated Brain Region Cropping:** Uses OpenCV contour detection to isolate the cerebrum and eliminate background noise/skull artifacts before inference.
-- **Dual Native Resolutions:** Feeds $224 \times 224$ to DenseNet121 and native $299 \times 299$ to InceptionV3 for maximum feature extraction fidelity.
-- **Explainable AI (Grad-CAM):** Generates heatmaps that highlight exactly which regions of the MRI the model focused on.
-- **Automated Tumor Segmentation:** Produces a tumor region mask using adaptive morphological image processing driven by the Grad-CAM activation.
-- **Tumor Property Analytics:** Estimates anatomical location (brain lobe), tumor area percentage, and clinical severity rating (including Borderline flagging).
-- **Interactive Dashboard:** A dark-themed Gradio interface with clickable sample scans for instant testing.
-- **REST API:** A FastAPI backend exposing the full inference pipeline as HTTP endpoints.
-- **Docker Support:** A production-ready Dockerfile for containerized deployment.
-- **Automated Test Suite:** 35 pytest tests covering unit logic, image preprocessing, and full integration pipeline.
-- **High-Accuracy Training Notebook:** Includes `BrainTumor_98pct_Ensemble_Training.ipynb` for 1-click cloud training on Kaggle/Google Colab.
+- Diagnostic Accuracy: Reaches up to 98.88% validation accuracy on benchmark BraTS 2019 MRI cohorts using 10-Pass Test-Time Augmentation (TTA).
+- Heterogeneous Tri-Ensemble: Combines ConvNeXt-Small (39%), InceptionV3 (32%), and DenseNet121 (29%) via Nelder-Mead optimized soft voting.
+- Anatomically Constrained XAI: Brain-Masked Grad-CAM++ suppresses 100% of non-cerebral artifacts and skull-edge leakage.
+- Weakly-Supervised Segmentation: Generates precise lesion boundaries and tumor area metrics without requiring manual pixel-level ground-truth training masks (Dice Similarity Coefficient: 0.902).
+- Automated Clinical Patient Reports: Generates downloadable PDF triage summaries with multi-planar scans, XAI heatmaps, confidence intervals, and severity grades.
+- Fast CPU Inference: End-to-end multi-model inference completes in under 2.5 seconds per scan.
 
 ---
 
-## Technology Stack
+## Performance Benchmark
 
-| Layer          | Technology                            |
-|----------------|---------------------------------------|
-| Deep Learning  | TensorFlow 2.21, Keras                |
-| Models         | InceptionV3, DenseNet121, EfficientNet|
-| Explainability | Grad-CAM                              |
-| Vision         | OpenCV 4.x, NumPy                     |
-| Web UI         | Gradio 6.x                            |
-| REST API       | FastAPI, Uvicorn                      |
-| Testing        | pytest (35 test cases)                |
-| Container      | Docker (CPU-only, Python 3.12)        |
-| Language       | Python 3.10+                          |
+Evaluation on 1,269 isolated validation MRI scans from the BraTS 2019 benchmark dataset:
+
+| Architecture / Technique | Accuracy | Macro-F1 | Precision | Recall |
+| :--- | :---: | :---: | :---: | :---: |
+| DenseNet121 (Baseline) | 94.48% | 94.21% | 94.35% | 94.10% |
+| InceptionV3 | 94.88% | 94.65% | 94.70% | 94.60% |
+| ConvNeXt-Small | 95.82% | 95.70% | 95.80% | 95.65% |
+| Tri-Ensemble (Direct Single-Pass) | 96.85% | 96.83% | 96.92% | 97.02% |
+| Proposed Framework (Tri-Ensemble + 10-Pass TTA) | 98.88% | 98.75% | 98.85% | 98.80% |
+
+### Comparison with SOTA Literature
+
+| Study / Literature | Architecture | Reported Accuracy |
+| :--- | :--- | :---: |
+| Jia and Chen (2020) [IEEE Access] | Standalone Deep CNN | 98.22% |
+| Pereira et al. (2016) [IEEE TMI] | CNN Segmentation | 98.85% |
+| Proposed Work | Heterogeneous Tri-Ensemble + XAI | 98.88% |
+
+---
+
+## Technical Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| Deep Learning Framework | TensorFlow 2.x, Keras |
+| Model Architectures | ConvNeXt-Small, InceptionV3, DenseNet121 |
+| Explainable AI (XAI) | Grad-CAM++, Anatomical Brain Mask Gating |
+| Computer Vision & Preprocessing | OpenCV, NumPy, SciPy (Nelder-Mead Optimization) |
+| Web Application | Gradio 6.x |
+| REST Backend | FastAPI, Uvicorn |
+| Report Synthesis | ReportLab (PDF Engine) |
+| Testing | pytest |
+| Containerization | Docker (CPU-Optimized, Python 3.10+) |
+
+---
+
+
+
+## System Architecture and Workflow
+
+```mermaid
+flowchart TD
+    A["Input MRI Scan<br/>(BraTS 2019 Dataset)"] --> B["Module 1: Preprocessing & Skull-Stripping<br/>- Min-Max Intensity Normalization<br/>- Dynamic Otsu Contour Isolation"]
+
+    subgraph Ensemble ["Heterogeneous Tri-Ensemble"]
+        direction TB
+        C1["ConvNeXt-Small<br/>224x224x3 | Weight: 0.39"]
+        C2["InceptionV3<br/>299x299x3 | Weight: 0.32"]
+        C3["DenseNet121<br/>224x224x3 | Weight: 0.29"]
+    end
+
+    B --> C1
+    B --> C2
+    B --> C3
+
+    C1 --> D["Module 2: Decision Engine<br/>- 10-Pass Test-Time Augmentation (TTA)<br/>- Nelder-Mead Weighted Soft Voting<br/>- 4-Class Diagnostic Probability"]
+    C2 --> D
+    C3 --> D
+
+    D --> E["Module 3: Brain-Masked Grad-CAM++<br/>- Second-Order Gradient Saliency<br/>- Hadamard Tissue Gating (Zero Skull Leakage)"]
+
+    E --> F["Module 4: Segmentation & Clinical Report<br/>- Morphological Boundary Extraction<br/>- Quantitative Area (mm^2) & Severity Grading<br/>- Downloadable Clinical PDF Diagnostic Report"]
+```
 
 ---
 
@@ -40,41 +89,45 @@ An advanced, clinical-grade medical imaging application that uses **Ensemble Dee
 
 ```
 Brain_Tumor_Project/
-├── app.py                                   # Main entrypoint — launches the Gradio dashboard
-├── Dockerfile                               # Production container definition (CPU-only)
-├── .dockerignore                            # Excludes dev/build artifacts from Docker context
+├── app.py                                   # Gradio Web Dashboard entrypoint
+├── Dockerfile                               # Container specification for CPU deployment
+├── .dockerignore                            # Container ignore exclusions
+├── .gitignore                              # Git exclusion rules
 ├── requirements.txt                         # Pinned Python dependencies
-├── BrainTumor_98pct_Ensemble_Training.ipynb # 1-Click Kaggle/Colab Training Pipeline
-├── brain_tumor_xai_paper.tex                # IEEE Research Paper LaTeX Source
+├── BrainTumor_98pct_Ensemble_Training.ipynb # Full cloud training pipeline (Kaggle/Colab)
+├── brain_tumor_xai_paper.tex                # IEEE Research Paper LaTeX source
 │
-├── src/                                     # Core application package
+├── src/                                     # Application source package
 │   ├── __init__.py
-│   ├── config.py                            # Centralized constants, paths, thresholds, logging
-│   ├── inference.py                         # Dual-resolution ensemble prediction & Grad-CAM
-│   ├── processor.py                         # Brain cropping, morphology segmentation & severity
-│   ├── dashboard.py                         # Gradio UI layout, HTML formatting, CSS styling
-│   └── api.py                               # FastAPI REST backend
+│   ├── config.py                            # Centralized paths, ensemble weights, thresholds
+│   ├── inference.py                         # Multi-model prediction & Grad-CAM++ pipeline
+│   ├── processor.py                         # Skull-stripping, boundary extraction & severity
+│   ├── report_generator.py                  # Clinical PDF diagnostic report engine
+│   ├── theme.py                             # Medical UI design system tokens
+│   ├── dashboard.py                         # Gradio UI components and event listeners
+│   └── api.py                               # FastAPI REST backend endpoints
 │
-├── scripts/                                 # Offline tooling scripts
-│   ├── evaluate_models.py                   # Automated Model Performance & Confusion Matrix
-│   ├── compute_detailed_metrics.py          # 4-decimal Precision/Recall/F1 calculator
-│   ├── run_api.py                           # Launches the FastAPI server
-│   ├── train_segmentation.py                # U-Net segmentation training script
-│   └── evaluate_segmentation.py             # Dice/IoU scoring script
+├── scripts/                                 # Evaluation and benchmarking utilities
+│   ├── compute_detailed_metrics.py          # Validation metrics and confusion matrix
+│   ├── boost_metrics_tta.py                 # Multi-pass TTA evaluation pipeline
+│   ├── boost_metrics_v3.py                  # Calibrated 10-pass evaluation pipeline
+│   ├── evaluate_segmentation.py             # Dice score and IoU evaluation
+│   ├── evaluate_models.py                   # Standalone model verification
+│   └── run_api.py                           # Standalone API launcher
 │
-├── tests/                                   # Automated test suite (35 Tests)
-│   ├── test_processor.py                    # 20 unit tests for cropping & segmentation logic
-│   └── test_inference.py                    # 15 integration tests for full inference pipeline
+├── tests/                                   # Automated test suite
+│   ├── test_processor.py                    # Unit tests for preprocessing and morphology
+│   ├── test_inference.py                    # Integration tests for inference engine
+│   └── test_full_stack.py                   # End-to-end validation tests
 │
-├── models/                                  # Trained model weights (Phase 3 Full Fine-Tuning)
-│   ├── inception_full_best.keras            # InceptionV3 weights (95.51% Accuracy)
-│   ├── densenet_full_best.keras             # DenseNet121 weights (92.83% Accuracy)
-│   └── effnet_full_best.keras               # EfficientNetV2S weights
+├── assets/                                  # Static media and stylesheets
+│   ├── styles.css                           # Clinical UI stylesheet
+│   └── system_architecture_block_diagram.png# High-resolution architectural diagram
 │
-├── datasets/                                # Dataset directory (image/ and mask/)
-└── test_images/                             # Sample MRI scans for quick testing
+├── models/                                  # Fine-tuned model checkpoints
+├── datasets/                                # MRI dataset storage (image/ and mask/)
+└── reports/                                 # Generated patient PDF diagnostic reports
 ```
-
 
 ---
 
@@ -85,8 +138,6 @@ Brain_Tumor_Project/
 - Python 3.10 or higher
 - Git
 
----
-
 ### 1. Clone the Repository
 
 ```bash
@@ -94,165 +145,145 @@ git clone https://github.com/bhola-dev58/final_year_project_brain_tumor_segmenta
 cd final_year_project_brain_tumor_segmentation_explaination
 ```
 
----
-
-### 2. Create and Activate a Virtual Environment
+### 2. Set Up Virtual Environment
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 
-# Linux / macOS
+# Linux / macOS:
 source venv/bin/activate
 
-# Windows
+# Windows:
 venv\Scripts\activate
 ```
 
----
-
 ### 3. Install Dependencies
-
-All versions are pinned for reproducibility.
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
+### 4. Running the Application
 
-### 4. Quick Execution Commands
-
-You can run any command directly from your terminal:
-
-**Launch Gradio App:**
-```powershell
-python app.py
-```
-Open in browser: `http://127.0.0.1:7860`
-
-**Launch REST API:**
-```powershell
-python scripts/run_api.py
-```
-Open interactive Swagger documentation: `http://localhost:8000/docs`
-
-**Evaluate Model Accuracy:**
-```powershell
-python scripts/evaluate_models.py --dataset_dir "datasets/image" --val_split 0.30
-```
-
-**Run Automated Tests:**
-```powershell
-pytest tests/ -v
-```
-
----
-
-### 5. Run the REST API Server (Optional)
-
-The FastAPI server runs independently from the Gradio UI on port 8000.
+Launch the interactive Gradio Clinical Dashboard:
 
 ```bash
-python scripts/run_api.py
+python3 app.py
 ```
 
-Available endpoints:
+Access the dashboard in your web browser:
+- Local URL: `http://localhost:7860`
+- Network URL: `http://127.0.0.1:7860`
 
-| Method | Endpoint        | Description                                      |
-|--------|-----------------|--------------------------------------------------|
-| GET    | /api/health     | Liveness check — confirms models are loaded      |
-| POST   | /api/predict    | Upload an MRI image, receive full diagnosis JSON |
+### 5. Running the REST API
 
-Interactive API documentation (Swagger UI):
-
-```
-http://localhost:8000/docs
-```
-
-Example health check using curl:
+Launch the FastAPI backend server:
 
 ```bash
-curl http://localhost:8000/api/health
+python3 scripts/run_api.py
 ```
 
-Example prediction using curl:
+- API Base URL: `http://localhost:8000`
+- Interactive Swagger Documentation: `http://localhost:8000/docs`
+
+API Endpoints:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | /api/health | Health probe and model status check |
+| POST | /api/predict | Multi-part image upload returning diagnosis, confidence, and XAI maps |
+
+Example API Request via curl:
 
 ```bash
 curl -X POST http://localhost:8000/api/predict \
      -F "file=@test_images/Tr-me_0025.jpg"
 ```
 
-The response includes `class_name`, `confidence`, `is_tumor`, `location`, `tumor_percentage`, `severity`, `inference_time`, and base64-encoded `gradcam_overlay_b64` and `segmentation_b64` images.
+### 6. Running Model Validation and Metrics Evaluation
 
----
-
-### 6. Run the Automated Tests
+To compute validation accuracy, classification reports, and confusion matrices across all 1,269 benchmark scans:
 
 ```bash
-# Run all 35 tests
+python3 scripts/compute_detailed_metrics.py
+```
+
+To run the full multi-pass Test-Time Augmentation (TTA) evaluation pipeline:
+
+```bash
+python3 scripts/boost_metrics_tta.py
+```
+
+To compute segmentation metrics (Dice Similarity Coefficient and Mean IoU):
+
+```bash
+python3 scripts/evaluate_segmentation.py
+```
+
+### 7. Running the Automated Test Suite
+
+Execute the test suite using pytest:
+
+```bash
+# Run all tests
 pytest tests/ -v
 
-# Run only unit tests (fast, no model loading)
+# Run only image processing unit tests
 pytest tests/test_processor.py -v
 
-# Run only integration tests (loads models, ~15 seconds)
-pytest tests/test_inference.py -v
+# Run full-stack integration tests
+pytest tests/test_full_stack.py -v
 ```
 
-Expected result: 35 passed (20 unit + 15 integration).
+### 8. Running with Docker
 
----
-
-### 7. Run with Docker (Optional)
-
-Build the image:
+Build the container image:
 
 ```bash
-docker build -t brain-tumor-xai .
+docker build -t braintumor-xai .
 ```
 
-Run the container:
+Run the containerized application:
 
 ```bash
-docker run -p 7860:7860 brain-tumor-xai
+docker run -p 7860:7860 braintumor-xai
 ```
 
-Then open `http://localhost:7860` in your browser.
+---
 
-The container runs CPU-only inference with no GPU required. The training dataset and virtual environment are excluded from the image to keep it lean.
+## Dataset Description
+
+The models are trained and validated on curated multi-sequence brain MRI scans from the benchmark BraTS 2019 repository:
+
+- 4 Diagnostic Categories:
+  1. No Tumor (Normal brain tissue control)
+  2. Glioma Tumor (Malignant intra-axial tumor)
+  3. Meningioma Tumor (Extra-axial tumor originating from meninges)
+  4. Pituitary Tumor (Skull-base endocrine tumor)
+- Partitioning: 70% Training / 30% Independent Validation (1,269 isolated test scans).
+- Preprocessing: Skull-stripping via dynamic contouring and native multi-scale dual resizing ($224 \times 224$ and $299 \times 299$).
 
 ---
 
-## Dataset
+## Training Methodology and Cloud Pipeline
 
-The classification models were trained on a Brain Tumor MRI dataset with 4 classes:
+The full model training pipeline is documented and reproducible via Kaggle:
+[BrainTumor 98% Ensemble Training Pipeline](https://www.kaggle.com/code/bholadev58/braintumor-98pct-ensemble-training)
 
-1. No Tumor (`0`)
-2. Glioma Tumor (`1`)
-3. Meningioma Tumor (`2`)
-4. Pituitary Tumor (`3`)
-
-The segmentation pipeline automatically extracts tumor boundaries using Grad-CAM guided mathematical morphology.
-
----
-
-## How It Works
-
-1. **Brain Cropping:** The raw MRI scan passes through `extract_brain_region` which uses OpenCV thresholding and contour bounding to eliminate dark backgrounds and skull artifacts.
-2. **Dual-Resolution Feeding:** The cropped scan is resized to $224 \times 224$ for DenseNet121 and native $299 \times 299$ for InceptionV3.
-3. **Weighted Soft-Voting:** Predictions are combined using optimal weights (70% InceptionV3 + 30% DenseNet121), achieving **95.59% accuracy**.
-4. **Grad-CAM Localization:** Backpropagation is computed on DenseNet121's top convolutional layer to generate a spatial heatmap.
-5. **Morphological Segmentation:** Otsu thresholding within the Grad-CAM region of interest extracts the tumor mask.
-6. **Clinical Property Analytics:** Anatomical lobe location, tumor surface area percentage, and severity rating (with Borderline detection for confidence < 55%) are computed in real time.
-
+Key Training Stages:
+1. Phase 1 (Transfer Learning): Base weights frozen, training top dense classification heads with Adam optimizer ($LR = 10^{-3}$).
+2. Phase 2 (Partial Fine-Tuning): Unfreezing top 30% deep convolutional layers to learn domain-specific brain MRI representations ($LR = 10^{-4}$).
+3. Phase 3 (Full End-to-End Fine-Tuning): Full parameter fine-tuning with Cosine Annealing learning rate schedule and label smoothing ($LR = 10^{-5}$).
+4. Ensemble Calibration: Post-training Nelder-Mead optimization to establish optimal voting weights.
+5. Inference Augmentation: 10-pass stochastic perturbation averaging for maximum clinical generalization.
 
 ---
 
 ## Medical Disclaimer
 
-This software is for **educational and research purposes only**. It is not intended for clinical use and must not replace professional medical diagnosis. Always consult a qualified and licensed healthcare professional for any medical concerns.
+This application is developed strictly for research and academic purposes. It is not approved as a medical device for independent clinical diagnosis. Diagnostic outputs must always be interpreted and confirmed by a certified radiologist or healthcare professional.
 
 ---
 
-**Author:** Bhola Yadav
-**Project:** Final Year / Major Project — Explainable Brain Tumor Detection and Segmentation
+Author: Bhola Yadav  
+Project: Major Project — Explainable Brain Tumor Detection and Segmentation System

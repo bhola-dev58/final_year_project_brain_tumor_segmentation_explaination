@@ -93,8 +93,8 @@ def evaluate_segmentation():
             img_resized = cv2.resize(img_rgb, (224, 224))
             img_array = np.expand_dims(img_resized, axis=0).astype(np.float32) / 255.0
 
-            heatmap_raw = make_gradcam_heatmap(img_array)
-            _, pred_mask, _ = create_segmentation(heatmap_raw, img_rgb)
+            heatmap_raw, brain_mask = make_gradcam_heatmap(img_array, original_img=img_rgb)
+            _, pred_mask, _ = create_segmentation(heatmap_raw, img_rgb, brain_mask=brain_mask)
 
             # Ensure same dimensions
             gt_mask_binary = (cv2.resize(gt_mask, (w, h)) > 127).astype(np.uint8)

@@ -1,37 +1,27 @@
-# ============================================================
-# README — Training Code Folder Guide
-# ============================================================
-
-## Folder Structure
-
-| File | Description |
-|------|-------------|
-| block_01_install_imports.py | Install libraries + all imports |
-| block_02_config.py | Dataset path + global config |
-| block_03_data_generators.py | 224x224 and 299x299 generators |
-| block_04_class_weights.py | Balanced class weights |
-| block_05_model_builder.py | Build DenseNet + InceptionV3 + EfficientNetV2S |
-| block_06_phase1_training.py | Phase 1: frozen base training (20 epochs) |
-| block_07_phase2_finetune.py | Phase 2: unfreeze top 60 layers (30 epochs) |
-| block_08_tta_evaluation.py | TTA ensemble evaluation (FIXED) |
-| block_09_save_models.py | Save models + confusion matrix (FIXED) |
-| block_10_aggressive_finetune.py | Phase 3: full unfreeze for 98%+ |
-| block_recovery.py | Use when Kaggle session restarts |
-
-## Run Order for 98%+ Accuracy
-
-### Fresh Run (Full Training)
-1 → 2 → 3 → 4 → 5 → 6 → 7 → 10 → 8* → 9*
-
-*In Block 8, change model names to: densenet_full_best.keras, inception_full_best.keras, effnet_full_best.keras
-
-### After Session Restart
-Run only: block_recovery.py (standalone, no dependencies)
-
-## Important Notes
-
-- EfficientNetV2S cannot be saved as .h5 — always saves as .keras
-- InceptionV3 uses 299x299 input (native size)
-- DenseNet121 and EfficientNetV2S use 224x224
-- Kaggle GPU: ~8-9 hours total for full run (Blocks 1-10)
-- Download from /kaggle/working/: densenet_best.h5, inception_best.h5, effnet_best.keras
+# ==============================================================================
+# BRAIN TUMOR 4-CLASS SOTA TRI-ENSEMBLE TRAINING PIPELINE (>= 98.79% TARGET)
+# ==============================================================================
+# Architecture:
+#   1. ConvNeXtSmall  (CVPR 2022, Meta AI - 7x7 Depthwise, GELU, LayerNorm) -> Weight: 0.45
+#   2. InceptionV3    (Native 299x299 Multi-Scale Receptive Fields)          -> Weight: 0.35
+#   3. DenseNet121    (Native 224x224 Dense Feature Reuse and Grad-CAM)      -> Weight: 0.20
+#
+#   Head: Dual Pooling (GlobalAvgPool + GlobalMaxPool concatenated)
+#         Captures both average and peak spatial tumor features.
+#
+# Sequential File and Kaggle Notebook Cell Mapping:
+# ------------------------------------------------------------------------------
+# Cell 01 -> block_01_install_imports.py      (Imports, GPU check, pip auxiliary packages)
+# Cell 02 -> block_02_config.py               (Dataset path, Epochs P1=25/P2=35/P3=80, Batch=32)
+# Cell 03 -> block_03_data_generators.py      (MRI-safe augmentation, Mixup alpha=0.2 pipeline)
+# Cell 04 -> block_04_class_weights.py        (Balanced class weights calculation)
+# Cell 05 -> block_05_model_builder.py        (Dual Pooling head, AMSGrad Adam, Callbacks)
+# Cell 06 -> block_06_phase1_training.py      (Phase 1: Warmup frozen heads with Mixup)
+# Cell 07 -> block_07_phase2_finetune.py      (Phase 2: Unfreeze top layers with Mixup)
+# Cell 08 -> block_08_phase3_full_finetune.py (Phase 3: Full unfreeze, NO Mixup, LR=3e-6/5e-6)
+# Cell 09 -> block_09_tta_evaluation.py       (10-Pass TTA, Weighted Tri-Ensemble, F1 Report)
+# Cell 10 -> block_10_save_models.py          (Export .keras and .h5 models, Confusion Matrix)
+#
+# Safety / Recovery:
+# Cell 11 -> block_recovery.py               (Optional: Instant recovery after session restart)
+# ==============================================================================

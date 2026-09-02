@@ -67,19 +67,19 @@ def evaluate_models(dataset_path: str, val_split: float = 0.30, tta: bool = Fals
     model_dense = tf.keras.models.load_model(DENSENET_PATH, compile=False)
     model_inc = tf.keras.models.load_model(INCEPTION_PATH, compile=False)
     
-    from src.config import EFFNET_PATH, DENSENET_VOTE_WEIGHT, INCEPTION_VOTE_WEIGHT, EFFNET_VOTE_WEIGHT
-    model_eff = None
-    if os.path.exists(EFFNET_PATH):
+    from src.config import CONVNEXT_PATH, DENSENET_VOTE_WEIGHT, INCEPTION_VOTE_WEIGHT, CONVNEXT_VOTE_WEIGHT
+    model_cnx = None
+    if os.path.exists(CONVNEXT_PATH):
         try:
-            model_eff = tf.keras.models.load_model(EFFNET_PATH, compile=False)
-            print("✔ Loaded EfficientNetV2S for Tri-Ensemble.")
+            model_cnx = tf.keras.models.load_model(CONVNEXT_PATH, compile=False)
+            print("✔ Loaded ConvNeXtSmall for Tri-Ensemble.")
         except Exception as e:
-            print(f"⚠️ Could not load EfficientNetV2S: {e}")
+            print(f"⚠️ Could not load ConvNeXtSmall: {e}")
 
     # Dynamic target shape resolution
     dense_shape = (model_dense.input_shape[1], model_dense.input_shape[2]) if model_dense.input_shape and model_dense.input_shape[1] else (224, 224)
     inc_shape = (model_inc.input_shape[1], model_inc.input_shape[2]) if model_inc.input_shape and model_inc.input_shape[1] else (299, 299)
-    eff_shape = (model_eff.input_shape[1], model_eff.input_shape[2]) if model_eff and model_eff.input_shape and model_eff.input_shape[1] else (224, 224)
+    cnx_shape = (model_cnx.input_shape[1], model_cnx.input_shape[2]) if model_cnx and model_cnx.input_shape and model_cnx.input_shape[1] else (224, 224)
 
     val_data_dense = datagen.flow_from_directory(
         dataset_path, target_size=dense_shape, batch_size=16,
@@ -91,11 +91,11 @@ def evaluate_models(dataset_path: str, val_split: float = 0.30, tta: bool = Fals
         class_mode='categorical', subset='validation' if val_split > 0 else None,
         seed=42, shuffle=False
     )
-    val_data_eff = datagen.flow_from_directory(
-        dataset_path, target_size=eff_shape, batch_size=16,
+    val_data_cnx = datagen.flow_from_directory(
+        dataset_path, target_size=cnx_shape, batch_size=16,
         class_mode='categorical', subset='validation' if val_split > 0 else None,
         seed=42, shuffle=False
-    ) if model_eff else None
+    ) if model_cnx else None
 
     if val_data_dense.samples == 0:
         print("[ERROR] No image samples found in dataset directory.")
@@ -107,17 +107,26 @@ def evaluate_models(dataset_path: str, val_split: float = 0.30, tta: bool = Fals
     
     print(f"Found {val_data_dense.samples} validation images across {len(class_indices)} classes: {class_indices}")
 
-    print("\n[1/2] Running DenseNet121 predictions...")
+    print("\n[1/3] Running DenseNet121 predictions...")
     pred_dense = model_dense.predict(val_data_dense, verbose=1)
-    print("\n[2/2] Running InceptionV3 predictions...")
+    print("\n[2/3] Running InceptionV3 predictions...")
     pred_inc = model_inc.predict(val_data_inc, verbose=1)
 
     dense_preds = np.argmax(pred_dense, axis=1)
     inc_preds = np.argmax(pred_inc, axis=1)
 
-    # Optimal Dual-Ensemble Soft-Voting (75% Inception + 25% DenseNet)
-    print("\nApplying Optimal Soft-Voting Ensemble (75% InceptionV3 + 25% DenseNet121)...")
-    ensemble_probs = (0.25 * pred_dense) + (0.75 * pred_inc)
+    if model_cnx and val_data_cnx:
+        print("\n[3/3] Running ConvNeXtSmall predictions...")
+        pred_cnx = model_cnx.predict(val_data_cnx, verbose=1)
+        cnx_preds = np.argmax(pred_cnx, axis=1)
+        cnx_acc, cnx_prec, cnx_rec, cnx_f1 = compute_metrics(true_labels, cnx_preds)
+
+        print("\nApplying Tri-Ensemble Soft-Voting (45% ConvNeXt + 35% Inception + 20% DenseNet)...")
+        ensemble_probs = (CONVNEXT_VOTE_WEIGHT * pred_cnx) + (INCEPTION_VOTE_WEIGHT * pred_inc) + (DENSENET_VOTE_WEIGHT * pred_dense)
+    else:
+        print("\nApplying Dual-Ensemble Soft-Voting (65% Inception + 35% DenseNet)...")
+        ensemble_probs = (0.35 * pred_dense) + (0.65 * pred_inc)
+
     ensemble_preds = np.argmax(ensemble_probs, axis=1)
 
     # Compute overall metrics
@@ -133,8 +142,11 @@ def evaluate_models(dataset_path: str, val_split: float = 0.30, tta: bool = Fals
     print("-" * 88)
     print(f"{'DenseNet121 (Phase 3)':<32} | {dense_acc:>9.2f}% | {dense_prec:>9.2f}% | {dense_rec:>9.2f}% | {dense_f1:>9.2f}%")
     print(f"{'InceptionV3 (Phase 3)':<32} | {inc_acc:>9.2f}% | {inc_prec:>9.2f}% | {inc_rec:>9.2f}% | {inc_f1:>9.2f}%")
-    print(f"{'Proposed Dual-Ensemble':<32} | {ens_acc:>9.2f}% | {ens_prec:>9.2f}% | {ens_rec:>9.2f}% | {ens_f1:>9.2f}%")
+    if model_cnx:
+        print(f"{'ConvNeXtSmall (Phase 3)':<32} | {cnx_acc:>9.2f}% | {cnx_prec:>9.2f}% | {cnx_rec:>9.2f}% | {cnx_f1:>9.2f}%")
+    print(f"{'Proposed Tri-Ensemble':<32} | {ens_acc:>9.2f}% | {ens_prec:>9.2f}% | {ens_rec:>9.2f}% | {ens_f1:>9.2f}%")
     print("=" * 88)
+    mode_str = "Tri-Ensemble" if model_cnx else "Dual-Ensemble"
 
 
     # Per-Class Classification Report for Ensemble

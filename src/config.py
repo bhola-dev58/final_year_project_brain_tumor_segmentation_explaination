@@ -24,15 +24,16 @@ def _get_model_path(base_name, extensions=[".keras", ".h5"]):
     return os.path.join(MODELS_DIR, f"{base_name}_best.h5")
 
 # Model Paths (Auto-resolves Phase 3 _full_best.keras weights)
-DENSENET_PATH = _get_model_path("densenet")
+CONVNEXT_PATH = _get_model_path("convnext")
 INCEPTION_PATH = _get_model_path("inception")
+DENSENET_PATH = _get_model_path("densenet")
 EFFNET_PATH = _get_model_path("effnet", extensions=[".keras"])
-
 
 # Classification Settings
 CLASSES = ['No Tumor', 'Glioma Tumor', 'Meningioma Tumor', 'Pituitary Tumor']
 IMG_SIZE_CLASSIFY = (224, 224)
-IMG_SIZE_TRAIN = (256, 256)
+IMG_SIZE_INCEPTION = (299, 299)
+IMG_SIZE_TRAIN = (224, 224)
 
 # Threshold & Activation Settings
 GRADCAM_CLEAN_THRESHOLD = 0.30
@@ -41,12 +42,11 @@ GRADCAM_MAX_TUMOR_PCT_FALLBACK = 25.0
 GRADCAM_OVERLAY_OPACITY = 0.65
 SEGMENTATION_OPACITY = 0.35
 
-# Ensemble Weighting Settings (Optimal Dual-Ensemble: 70% Inception + 30% DenseNet)
-DENSENET_VOTE_WEIGHT = 0.30
-INCEPTION_VOTE_WEIGHT = 0.70
+# Tri-Ensemble Weighting Settings (ConvNeXtSmall: 45%, InceptionV3: 35%, DenseNet121: 20%)
+CONVNEXT_VOTE_WEIGHT = 0.45
+INCEPTION_VOTE_WEIGHT = 0.35
+DENSENET_VOTE_WEIGHT = 0.20
 EFFNET_VOTE_WEIGHT = 0.00
-
-
 
 # Color Palettes
 COLOR_TUMOR_SEGMENT = [220, 40, 40]  # Deep Red (RGB)

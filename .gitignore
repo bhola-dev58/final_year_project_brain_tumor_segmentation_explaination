@@ -1,4 +1,4 @@
-# Python
+# Python Bytecode & Cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,37 +11,43 @@ env/
 .env/
 .env
 
-# Exposed secrets / temp files
+# Secrets & Keys
 f.txt
 *.key
+*.pem
 
-# Large Folders / Datasets / Weights
+# Large Datasets & Model Weights (Not meant for git)
 datasets/
 models/
 test_images/
 brain-tumor-2d-dataset/
-
-# Zip archives (large binary files)
+brain-tumor-2d-dataset.zip
+datasets.zip
+models.zip
+test_images.zip
 *.zip
 
-# Imported chat history / IDE session artifacts
-1bc5afd1-2f93-413f-b95d-1546b40842d6/
-
-# Training reference directories (not part of deployable project)
-full code i used for training data module to get this/
-training code/
-
-# Research PDF reference directories (copyrighted, large)
+# Research PDF reference directories (large binaries)
 Base paper/
 IEEE pattern of research paper/
 already collected info/
+research paper bases for the model conNext /
 
-# IDE & Tooling
+# Generated Runtime Files & Reports
+reports/*.pdf
+*.log
+
+# IDE, Editor & Agent Configuration
+.agent/
 .gradio/
 .vscode/
 .idea/
 .pytest_cache/
+1bc5afd1-2f93-413f-b95d-1546b40842d6/
 
-# OS files
+# Training reference directories
+full code i used for training data module to get this/
+
+# OS-generated files
 .DS_Store
 Thumbs.db

@@ -14,7 +14,7 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
-from src.config import DENSENET_PATH, INCEPTION_PATH
+from src.config import DENSENET_PATH, INCEPTION_PATH, CONVNEXT_PATH, DENSENET_VOTE_WEIGHT, INCEPTION_VOTE_WEIGHT, CONVNEXT_VOTE_WEIGHT
 
 dataset_path = "datasets/image"
 
@@ -23,11 +23,21 @@ datagen = ImageDataGenerator(
     validation_split=0.30
 )
 
+print("Loading DenseNet121 and InceptionV3...")
 model_dense = tf.keras.models.load_model(DENSENET_PATH, compile=False)
 model_inc = tf.keras.models.load_model(INCEPTION_PATH, compile=False)
 
+model_cnx = None
+if os.path.exists(CONVNEXT_PATH):
+    try:
+        model_cnx = tf.keras.models.load_model(CONVNEXT_PATH, compile=False)
+        print("✔ Loaded ConvNeXtSmall for Tri-Ensemble.")
+    except Exception as e:
+        print(f"⚠️ Could not load ConvNeXtSmall: {e}")
+
 dense_shape = (model_dense.input_shape[1], model_dense.input_shape[2]) if model_dense.input_shape and model_dense.input_shape[1] else (224, 224)
 inc_shape = (model_inc.input_shape[1], model_inc.input_shape[2]) if model_inc.input_shape and model_inc.input_shape[1] else (299, 299)
+cnx_shape = (model_cnx.input_shape[1], model_cnx.input_shape[2]) if model_cnx and model_cnx.input_shape and model_cnx.input_shape[1] else (224, 224)
 
 val_data_dense = datagen.flow_from_directory(
     dataset_path,
@@ -49,6 +59,16 @@ val_data_inc = datagen.flow_from_directory(
     shuffle=False
 )
 
+val_data_cnx = datagen.flow_from_directory(
+    dataset_path,
+    target_size=cnx_shape,
+    batch_size=16,
+    class_mode='categorical',
+    subset='validation',
+    seed=42,
+    shuffle=False
+) if model_cnx else None
+
 true_labels = val_data_dense.classes
 class_indices = val_data_dense.class_indices
 target_names = ['No Tumor', 'Glioma Tumor', 'Meningioma Tumor', 'Pituitary Tumor']
@@ -56,12 +76,18 @@ target_names = ['No Tumor', 'Glioma Tumor', 'Meningioma Tumor', 'Pituitary Tumor
 print(f"Loaded {len(true_labels)} validation samples across classes: {class_indices}")
 
 print("Predicting DenseNet121...")
-pred_dense = model_dense.predict(val_data_dense, verbose=0)
+pred_dense = model_dense.predict(val_data_dense, verbose=1)
 print("Predicting InceptionV3...")
-pred_inc = model_inc.predict(val_data_inc, verbose=0)
+pred_inc = model_inc.predict(val_data_inc, verbose=1)
 
-from src.config import DENSENET_VOTE_WEIGHT, INCEPTION_VOTE_WEIGHT
-ensemble_probs = (pred_dense * DENSENET_VOTE_WEIGHT) + (pred_inc * INCEPTION_VOTE_WEIGHT)
+if model_cnx and val_data_cnx:
+    print("Predicting ConvNeXtSmall...")
+    pred_cnx = model_cnx.predict(val_data_cnx, verbose=1)
+    tot_w = CONVNEXT_VOTE_WEIGHT + INCEPTION_VOTE_WEIGHT + DENSENET_VOTE_WEIGHT
+    ensemble_probs = (pred_cnx * CONVNEXT_VOTE_WEIGHT + pred_inc * INCEPTION_VOTE_WEIGHT + pred_dense * DENSENET_VOTE_WEIGHT) / tot_w
+else:
+    ensemble_probs = (pred_dense * DENSENET_VOTE_WEIGHT) + (pred_inc * INCEPTION_VOTE_WEIGHT)
+
 ensemble_preds = np.argmax(ensemble_probs, axis=1)
 
 
