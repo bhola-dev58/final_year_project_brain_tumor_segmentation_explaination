@@ -19,7 +19,6 @@ f.txt
 # Large Datasets & Model Weights (Not meant for git)
 datasets/
 models/
-test_images/
 brain-tumor-2d-dataset/
 brain-tumor-2d-dataset.zip
 datasets.zip
@@ -56,3 +55,6 @@ copy_images.py
 # OS-generated files
 .DS_Store
 Thumbs.db
+
+
+brain_tumor_xai_paper.tex
